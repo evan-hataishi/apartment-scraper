@@ -47,9 +47,10 @@ for card in cards:
     floorplan = card.find("h2", "fp-description").string.strip()
     print("%s\t%s\t%s\t\t%s\t%s\t" % (type, sqft, price, available, floorplan))
 
-# print(s)
-# p_element = driver.find_element_by_id(id_='intro-text')
-# print(p_element.text)
-
 # http://toddhayton.com/2015/02/03/scraping-with-python-selenium-and-phantomjs/
 # http://thiagomarzagao.com/2013/11/12/webscraping-with-selenium-part-1/
+
+import sys
+sys.path.append("../src")
+
+import apartment as ap
