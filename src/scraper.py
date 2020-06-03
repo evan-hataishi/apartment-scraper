@@ -1,6 +1,7 @@
 from selenium import webdriver
 from bs4 import BeautifulSoup
 from selenium.webdriver.firefox.options import Options
+import re
 import apartment as ap
 
 GECKO_PATH = '/home/evan/Documents/git/apartment-scraper/src/geckodriver'
@@ -21,7 +22,7 @@ class Scraper():
         self.fetch_html()
         self.parse_html()
         print(self)
-        
+
     def fetch_html(self, headless=True):
         if ".html" in self.url:
             self.html = Scraper.fetch_html_from_file(self.url)
@@ -52,28 +53,28 @@ class Scraper():
     def split_apartment_html(self):
         raise NotImplementedError("Must override split_apartment_html")
 
-    def parse_apartment_html(self, apartment_html):
+    def parse_apartment_html(self, html):
         data = {}
-        data['type'] = self.parse_type(apartment_html)
-        data['sqft'] = self.parse_sqft(apartment_html)
-        data['price'] = self.parse_price(apartment_html)
-        data['availability'] = self.parse_availability(apartment_html)
-        data['floorplan'] = self.parse_floorplan(apartment_html)
+        data['type'] = self.parse_type(html)
+        data['sqft'] = self.parse_sqft(html)
+        data['price'] = self.parse_price(html)
+        data['availability'] = self.parse_availability(html)
+        data['floorplan'] = self.parse_floorplan(html)
         return ap.Apartment(**data)
 
-    def parse_type(self, apartment_html):
+    def parse_type(self, html):
         raise NotImplementedError("Must override parse_type")
 
-    def parse_sqft(self, apartment_html):
+    def parse_sqft(self, html):
         raise NotImplementedError("Must override parse_sqft")
 
-    def parse_price(self, apartment_html):
+    def parse_price(self, html):
         raise NotImplementedError("Must override parse_price")
 
-    def parse_availability(self, apartment_html):
+    def parse_availability(self, html):
         raise NotImplementedError("Must override parse_availability")
 
-    def parse_floorplan(self, apartment_html):
+    def parse_floorplan(self, html):
         raise NotImplementedError("Must override parse_floorplan")
 
 class TheStandard(Scraper):
@@ -87,28 +88,74 @@ class TheStandard(Scraper):
     def split_apartment_html(self):
         return self.soup.find_all("div", "fp-card")
 
-    def parse_type(self, apartment_html):
-        type = apartment_html.find("span", "fp-type").string.strip()
+    def parse_type(self, html):
+        type = html.find("span", "fp-type").string.strip()
         if type == "Studio":
             return (0, 1)
         s = type.split()
         return (int(s[0]), int(s[3]))
 
-    def parse_sqft(self, apartment_html):
-        return apartment_html.find_all("span")[2].text.split()[0].strip()
+    def parse_sqft(self, html):
+        return html.find_all("span")[2].text.split()[0].strip()
 
-    def parse_price(self, apartment_html):
-        div = apartment_html.find("div", "fp-price")
+    def parse_price(self, html):
+        div = html.find("div", "fp-price")
         if len(div) < 2:
-            return 0
+            return -1
         return div.find_all("span")[1].string.strip()
 
-    def parse_availability(self, apartment_html):
-        div = apartment_html.find("div", "fp-availability")
+    def parse_availability(self, html):
+        div = html.find("div", "fp-availability")
         text = div.text.strip()
         if len(text) == 0:
             return 0
         return int(text.split()[0])
 
-    def parse_floorplan(self, apartment_html):
-        return apartment_html.find("h2", "fp-description").string.strip()
+    def parse_floorplan(self, html):
+        return html.find("h2", "fp-description").string.strip()
+
+class CanneryPark(Scraper):
+
+    url = "https://www.canneryparkbywindsor.com/floorplans"
+
+    def __init__(self, **kwargs):
+        kwargs['url'] = kwargs.get('url', self.url)
+        super().__init__(**kwargs)
+
+    def split_apartment_html(self):
+        sections = self.soup.find_all(lambda tag: tag.name == 'div' and tag.get('class') == ['card'])
+        cards = []
+        for s in sections:
+            cards += s.find_all("div", "row")
+        return cards
+
+    def parse_type(self, html):
+        match = re.compile('Floorplan[0-9]{1,2}Beds')
+        beds = html.find('span', {'data-selenium-id': match}).text.split()[0]
+        if beds == 'Studio':
+            beds = 0
+        match = re.compile('Floorplan[0-9]{1,2}Baths')
+        baths = html.find('span', {'data-selenium-id': match}).text.split()[0]
+        return (int(beds), int(baths))
+
+    def parse_sqft(self, html):
+        match = re.compile('Floorplan[0-9]{1,2}SqFt')
+        sqft = html.find('span', {'data-selenium-id': match})
+        return sqft.text.strip().split()[0]
+
+    def parse_price(self, html):
+        match = re.compile('Floorplan[0-9]{1,2}Rent')
+        price = html.find('span', {'data-selenium-id': match})
+        if price.string:
+            return -1
+        return price.text.strip().split()[0][:-2]
+
+    def parse_availability(self, html):
+        match = re.compile('Floorplan[0-9]{1,2} Availability')
+        available = html.find('span', {'data-selenium-id': match})
+        return int(available.text.strip().split()[0])
+
+    def parse_floorplan(self, html):
+        match = re.compile('Floorplan[0-9]{1,2}Name')
+        type = html.find('span', {'data-selenium-id': match})
+        return type.text.strip()
