@@ -5,52 +5,54 @@ from selenium.webdriver.firefox.options import Options
 # options = Options()
 # options.headless = True
 #
-# driver = webdriver.Firefox(options=options, executable_path='./geckodriver')
-# url = "https://thestandardsanjose.securecafe.com/onlineleasing/the-standard-ca/floorplans"
+# driver = webdriver.Firefox(options=options, executable_path='../src/geckodriver')
+# url = "https://www.canneryparkbywindsor.com/floorplans"
 #
 # driver.get(url)
 # page_source = driver.page_source
 # driver.quit()
+#
+# print(page_source)
 
-def parse_type(s):
-    if s == "Studio":
-        return s.lower()
-    a = s.split()
-    return a[0] + "b" + a[3] + "b"
+# Super useful link: https://stackoverflow.com/questions/22726860/beautifulsoup-webscraping-find-all-finding-exact-match
 
-def parse_price(div):
-    # print(div.span)
-    # print(len(div))
-    if len(div) < 2:
-        return 0
-    return div.find_all("span")[1].string.strip()
+def split_apartment_html(html):
+    sections = html.find_all(lambda tag: tag.name == 'div' and tag.get('class') == ['card'])
+    print(len(sections[0].find_all("div", "row")))
+    cards = [s.find_all("div", "row") for s in sections]
+    return cards
 
-def parse_availability(div):
-    text = div.text.strip()
-    if len(text) == 0:
-        return 0
-    return text.split()[0]
+def parse_type(html):
+    # html.find("div", "mb-2 d-flex flex-wrap")
+    pass
 
-page_source = open('the_standard.html', 'r').read()
+def parse_sqft(html):
+    pass
+
+def parse_price(html):
+    pass
+
+def parse_availability(html):
+    pass
+
+def parse_floorplan(html):
+    pass
+
+page_source = open('cannery_park.html', 'r').read()
 
 s = BeautifulSoup(page_source, features="lxml")
 
-cards = s.find_all("div", "fp-card")
-
-print("Type\tSQFT\tPrice\t\tAvail.\tFloorplan")
-
+cards = split_apartment_html(s)
+#
+# print("Type\tSQFT\tPrice\t\tAvail.\tFloorplan")
+#
 for card in cards:
-    type = parse_type(card.find("span", "fp-type").string.strip())
-    sqft = card.find_all("span")[2].text.split()[0].strip()
-    price = parse_price(card.find("div", "fp-price"))
-    available = parse_availability(card.find("div", "fp-availability"))
-    floorplan = card.find("h2", "fp-description").string.strip()
-    print("%s\t%s\t%s\t\t%s\t%s\t" % (type, sqft, price, available, floorplan))
+    type = parse_type(card)
+    sqft = parse_sqft(card)
+    price = parse_price(card)
+    availability = parse_availability(card)
+    floorplan = parse_floorplan(card)
+    print("%s\t%s\t%s\t\t%s\t%s\t" % (type, sqft, price, availability, floorplan))
 
 # http://toddhayton.com/2015/02/03/scraping-with-python-selenium-and-phantomjs/
 # http://thiagomarzagao.com/2013/11/12/webscraping-with-selenium-part-1/
-
-import sys
-sys.path.append("../src")
-
-import apartment as ap
