@@ -159,3 +159,42 @@ class CanneryPark(Scraper):
         match = re.compile('Floorplan[0-9]{1,2}Name')
         type = html.find('span', {'data-selenium-id': match})
         return type.text.strip()
+
+class Esplenade(Scraper):
+
+    url = "https://www.essexapartmenthomes.com/apartments/the-esplanade/floor-plans-and-pricing"
+
+    def __init__(self, **kwargs):
+        kwargs['url'] = kwargs.get('url', self.url)
+        super().__init__(**kwargs)
+
+    def split_apartment_html(self):
+        return self.soup.find_all("div", "floor-plan-card")
+
+    def parse_type(self, html):
+        type_sqft = html.find("p", "floor-plan-card__content__size").text.split("Bath")
+        type = type_sqft[0].strip().split()
+        beds = 0 if type[0] == "Studio" else type[0]
+        baths = type[-1]
+        return (int(beds), int(baths))
+
+    def parse_sqft(self, html):
+        type_sqft = html.find("p", "floor-plan-card__content__size").text.split("Bath")
+        sqft = type_sqft[1].strip().split()[0]
+        return sqft
+
+    def parse_price(self, html):
+        price = html.find("p", "floor-plan-card__content__price").text.strip()
+        if "Contact" in price:
+            return -1
+        return price.split()[-1]
+
+    def parse_availability(self, html):
+        button = html.find("button", "button-primary")
+        if not button:
+            return -1
+        return button.span.text.strip().split()[0][1:-1]
+
+    def parse_floorplan(self, html):
+        fp = html.find("p", "floor-plan-card__content__layout")
+        return fp.text.strip().split()[0]

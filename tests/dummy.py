@@ -7,7 +7,7 @@ import re
 # options.headless = True
 #
 # driver = webdriver.Firefox(options=options, executable_path='../src/geckodriver')
-# url = "https://www.canneryparkbywindsor.com/floorplans"
+# url = "https://www.essexapartmenthomes.com/apartments/the-esplanade/floor-plans-and-pricing"
 #
 # driver.get(url)
 # page_source = driver.page_source
@@ -18,44 +18,37 @@ import re
 # Super useful link: https://stackoverflow.com/questions/22726860/beautifulsoup-webscraping-find-all-finding-exact-match
 
 def split_apartment_html(html):
-    sections = html.find_all(lambda tag: tag.name == 'div' and tag.get('class') == ['card'])
-    cards = []
-    for s in sections:
-        cards += s.find_all("div", "row")
-    return cards
+    return html.find_all("div", "floor-plan-card")
 
 def parse_type(html):
-    match = re.compile('Floorplan[0-9]{1,2}Beds')
-    beds = html.find('span', {'data-selenium-id': match}).text.split()[0]
-    if beds == 'Studio':
-        beds = 0
-    match = re.compile('Floorplan[0-9]{1,2}Baths')
-    baths = html.find('span', {'data-selenium-id': match}).text.split()[0]
+    type_sqft = html.find("p", "floor-plan-card__content__size").text.split("Bath")
+    type = type_sqft[0].strip().split()
+    beds = 0 if type[0] == "Studio" else type[0]
+    baths = type[-1]
     return (int(beds), int(baths))
 
 def parse_sqft(html):
-    match = re.compile('Floorplan[0-9]{1,2}SqFt')
-    sqft = html.find('span', {'data-selenium-id': match})
-    return sqft.text.strip().split()[0]
+    type_sqft = html.find("p", "floor-plan-card__content__size").text.split("Bath")
+    sqft = type_sqft[1].strip().split()[0]
+    return sqft
 
 def parse_price(html):
-    match = re.compile('Floorplan[0-9]{1,2}Rent')
-    price = html.find('span', {'data-selenium-id': match})
-    if price.string:
+    price = html.find("p", "floor-plan-card__content__price").text.strip()
+    if "Contact" in price:
         return -1
-    return price.text.strip().split()[0][:-2]
+    return price.split()[-1]
 
 def parse_availability(html):
-    match = re.compile('Floorplan[0-9]{1,2} Availability')
-    available = html.find('span', {'data-selenium-id': match})
-    return int(available.text.strip().split()[0])
+    button = html.find("button", "button-primary")
+    if not button:
+        return -1
+    return button.span.text.strip().split()[0][1:-1]
 
 def parse_floorplan(html):
-    match = re.compile('Floorplan[0-9]{1,2}Name')
-    type = html.find('span', {'data-selenium-id': match})
-    return type.text.strip()
+    fp = html.find("p", "floor-plan-card__content__layout")
+    return fp.text.strip().split()[0]
 
-page_source = open('cannery_park.html', 'r').read()
+page_source = open('esplenade.html', 'r').read()
 
 s = BeautifulSoup(page_source, features="lxml")
 
