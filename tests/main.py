@@ -11,7 +11,8 @@ def do_stuff(apartments):
         a.scrape()
 
 def main():
-    old = [sc.TheStandard(url='the_standard.html'), sc.CanneryPark(url='cannery_park.html'), sc.Esplenade(url='esplenade.html')]
+    # The standard website keeps changing...
+    old = [sc.TheStandard(url='the_standard_3.html'), sc.CanneryPark(url='cannery_park.html'), sc.Esplenade(url='esplenade.html')]
     updated = [sc.TheStandard(), sc.CanneryPark(), sc.Esplenade()]
 
     if USE_OLD:

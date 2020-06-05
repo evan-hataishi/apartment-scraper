@@ -44,6 +44,12 @@ class Scraper():
         driver.quit()
         return html
 
+    def print_html(self):
+        if self.soup:
+            print(self.soup)
+        else:
+            print("Must call fetch_html() first")
+
     # Use abstract annotation using abc?
     # https://stackoverflow.com/questions/25062114/calling-child-class-method-from-parent-class-file-in-python
     def parse_html(self):
@@ -105,14 +111,59 @@ class TheStandard(Scraper):
         return div.find_all("span")[1].string.strip()
 
     def parse_availability(self, html):
-        div = html.find("div", "fp-availability")
-        text = div.text.strip()
-        if len(text) == 0:
-            return 0
-        return int(text.split()[0])
+        available = html.find("div", "fp-availability").text.strip()
+        if "Available" in available:
+            return int(available.split()[0])
+        return 0
 
     def parse_floorplan(self, html):
         return html.find("h2", "fp-description").string.strip()
+
+# The standard changed their website on 6/4?
+class TheStandard2(Scraper):
+
+    url = "https://thestandardsanjose.securecafe.com/onlineleasing/the-standard-ca/floorplans"
+
+    def __init__(self, **kwargs):
+        kwargs['url'] = kwargs.get('url', self.url)
+        super().__init__(**kwargs)
+
+    def split_apartment_html(self):
+        match = re.compile('tRow[0-9]{1,2}_1')
+        rows = self.soup.find_all('tr', {'data-selenium-id': match})
+        # print(rows)
+        return rows
+
+    def parse_type(self, html):
+        match = re.compile('Bed_Bath_[0-9]{1,2}')
+        beds_baths = html.find('td', {'data-selenium-id': match}).text.split("Bath")[-1].strip().split(" / ")
+        beds = beds_baths[0]
+        baths = beds_baths[1]
+        if beds == "Studio":
+            beds = 0
+        return (int(beds), int(baths))
+
+    def parse_sqft(self, html):
+        sqft = html.find('td', {'data-label': 'SQ. FT.'}).text.split("Square")[0]
+        return sqft.strip()
+
+    def parse_price(self, html):
+        match = re.compile('Rent_[0-9]{1,2}')
+        rent = html.find('td', {'data-selenium-id': match}).text[12:]
+        if "Call" in rent:
+            return -1
+        return rent.split()[0]
+
+    def parse_availability(self, html):
+        available = html.find("span", {'class': "available-fp"}).text
+        if len(available) == 0:
+            return 0
+        return int(available.split()[0])
+
+    def parse_floorplan(self, html):
+        match = re.compile('FloorPlanName_[0-9]{1,2}')
+        fp = html.find('td', {'data-selenium-id': match}).text.split("Plan")[-1]
+        return fp
 
 class CanneryPark(Scraper):
 
